@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Aufgabenverwaltung - Projektarbeit</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { border: 1px solid grey; padding: 15px; max-width: 500px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        td, th { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+    </style>
+    <!-- jQuery einbinden -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h3>Neue Kategorie anlegen (Create)</h3>
+        Name der Kategorie: <input type="text" id="kategorieInput"><br><br>
+        <button id="saveBtn">Kategorie Speichern</button>
+
+        <h4>Gespeicherte Kategorien (Read):</h4>
+        <table id="kategorieTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Kategorie-Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Hier werden die Einträge per jQuery dynamisch eingefügt -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Ein kleiner Zähler, der für diesen Test die Datenbank-IDs simuliert
+            let testIdCounter = 1;
+
+            // Klick-Event für den Speichern-Button
+            $("#saveBtn").click(function() {
+                
+                // 1. Wert auslesen
+                let katName = $("#kategorieInput").val();
+
+                // Nur weitermachen, wenn das Feld nicht leer ist
+                if (katName.trim() !== "") {
+                    
+                    // ==========================================
+                    // SO WIRD ES SPÄTER IM PROJEKT GEMACHT (AJAX)
+                    // ==========================================
+                    /*
+                    $.ajax({
+                        url: "/api/kategorien", // Die URL eures Python Service-Layers
+                        type: "POST",           // "POST" für das Erstellen (Create)
+                        contentType: "application/json",
+                        data: JSON.stringify({ name: katName }),
+                        success: function(response) {
+                            // Wenn Python "OK" meldet und die echte ID aus der Datenbank zurückgibt:
+                            let newRow = "<tr><td>" + response.id + "</td><td>" + response.name + "</td></tr>";
+                            $("#kategorieTable tbody").append(newRow);
+                            $("#kategorieInput").val(""); // Textfeld wieder leeren
+                        }
+                    });
+                    */
+
+                    // ==========================================
+                    // FÜR JETZT ZUM TESTEN (Wie in Übung 1.2)
+                    // ==========================================
+                    // Wir fügen die Zeile einfach lokal ein, damit du siehst, wie die Tabelle wächst
+                    let newRow = "<tr><td>" + testIdCounter + "</td><td>" + katName + "</td></tr>";
+                    $("#kategorieTable tbody").append(newRow);
+                    
+                    testIdCounter++;              // ID für den nächsten Eintrag erhöhen
+                    $("#kategorieInput").val(""); // Textfeld wieder leeren
+                }
+            });
+        });
+    </script>
+</body>
+</html>
