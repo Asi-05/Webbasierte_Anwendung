@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Aufgabenverwaltung</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { border: 1px solid grey; padding: 15px; max-width: 700px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        td, th { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .erledigt { text-decoration: line-through; color: grey; }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <!-- ========== AUFGABEN ========== -->
+    <div class="container">
+        <h3>Aufgaben</h3>
+        Titel: <input type="text" id="titelInput"><br><br>
+        Beschreibung: <input type="text" id="beschreibungInput"><br><br>
+        Kategorie: <select id="kategorieSelect"></select><br><br>
+        <button id="aufgabeSpeichernBtn">Aufgabe speichern</button>
+
+        <table id="aufgabeTable">
+            <thead><tr><th>Erledigt</th><th>Titel</th><th>Beschreibung</th><th>Kategorie</th><th>Aktionen</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Hier merken wir uns die Kategorien, um bei Aufgaben den Namen anzeigen zu können
+        let kategorien = [];
+
+        // Hilfsfunktion: sendet JSON an den Server (für POST, PUT, DELETE)
+        function sendeAnfrage(methode, url, daten) {
+            return $.ajax({
+                url: url,
+                type: methode,
+                contentType: "application/json",
+                data: daten ? JSON.stringify(daten) : undefined
+            }).fail(function(xhr) {
+                // Fehlermeldung aus der Business-Logik anzeigen
+                alert("Fehler: " + (xhr.responseJSON ? xhr.responseJSON.detail : xhr.statusText));
+            });
+        }
+
+        // ---------- Kategorien (fix: Schule, Arbeit, Privat) ----------
+
+        function ladeKategorien() {
+            $.getJSON("/api/kategorien").done(function(data) {
+                kategorien = data;
+                let select = $("#kategorieSelect").empty();
+                for (let k of data) {
+                    select.append($("<option>").val(k.id).text(k.name));
+                }
+                ladeAufgaben(); // erst jetzt, damit die Kategorienamen bekannt sind
+            });
+        }
+
+        // ---------- Aufgaben ----------
+
+        function kategorieName(id) {
+            let k = kategorien.find(k => k.id === id);
+            return k ? k.name : "?";
+        }
+
+        function ladeAufgaben() {
+            $.getJSON("/api/aufgaben").done(function(data) {
+                let tbody = $("#aufgabeTable tbody").empty();
+
+                for (let a of data) {
+                    let checkbox = $("<input type='checkbox'>").prop("checked", a.erledigt)
+                        .change(function() {
+                            a.erledigt = this.checked;
+                            sendeAnfrage("PUT", "/api/aufgaben/" + a.id, a).done(ladeAufgaben);
+                        });
+
+                    let zeile = $("<tr>").toggleClass("erledigt", a.erledigt);
+                    zeile.append($("<td>").append(checkbox));
+                    zeile.append($("<td>").text(a.titel));
+                    zeile.append($("<td>").text(a.beschreibung || ""));
+                    zeile.append($("<td>").text(kategorieName(a.kategorie_id)));
+                    zeile.append($("<td>")
+                        .append($("<button>").text("Ändern").click(() => aufgabeAendern(a)))
+                        .append($("<button>").text("Löschen").click(() => aufgabeLoeschen(a))));
+                    tbody.append(zeile);
+                }
+            });
+        }
+
+        function aufgabeAendern(a) {
+            let neuerTitel = prompt("Neuer Titel:", a.titel);
+            if (neuerTitel) {
+                a.titel = neuerTitel;
+                sendeAnfrage("PUT", "/api/aufgaben/" + a.id, a).done(ladeAufgaben);
+            }
+        }
+
+        function aufgabeLoeschen(a) {
+            sendeAnfrage("DELETE", "/api/aufgaben/" + a.id).done(ladeAufgaben);
+        }
+
+        $("#aufgabeSpeichernBtn").click(function() {
+            let neueAufgabe = {
+                titel: $("#titelInput").val(),
+                beschreibung: $("#beschreibungInput").val() || null,
+                kategorie_id: parseInt($("#kategorieSelect").val())
+            };
+            sendeAnfrage("POST", "/api/aufgaben", neueAufgabe).done(function() {
+                $("#titelInput").val("");
+                $("#beschreibungInput").val("");
+                ladeAufgaben();
+            });
+        });
+
+        // Beim Öffnen der Seite alles laden
+        $(document).ready(ladeKategorien);
+    </script>
+</body>
+</html>
