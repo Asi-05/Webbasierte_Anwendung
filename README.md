@@ -17,6 +17,10 @@ python3 -m pip install pymysql
 DATABASE_URL="mysql+pymysql://user:passwort@localhost/aufgaben" python3 main.py
 ```
 
+## ER-Modell (konzeptuell)
+
+![ER-Modell](docs/er-modell.svg)
+
 ## Aufbau (Schichten)
 
 | Datei | Schicht |
