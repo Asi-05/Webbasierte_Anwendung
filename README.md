@@ -20,7 +20,7 @@ Die Daten werden in der SQLite-Datei `aufgaben.db` im Projektordner gespeichert.
 
 | Datei | Schicht |
 |---|---|
-| `static/index.html` | Presentation Layer (HTML + jQuery) |
+| `static/index.html`, `static/css/main.css`, `static/js/main.js` | Presentation Layer (HTML + CSS + JavaScript mit jQuery) |
 | `app/service.py` | Service Layer (REST-Endpunkte mit FastAPI) |
 | `app/business.py` | Business Layer (DTOs + Geschäftslogik) |
 | `app/persistence.py` | Persistence Layer (SQLAlchemy-Entitäten + DB-Verbindung) |
