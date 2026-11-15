@@ -13,16 +13,6 @@ from app.persistence import get_db
 router = APIRouter(prefix="/api")
 
 
-def fehler_behandeln(funktion, *args):
-    """Ruft eine Business-Funktion auf und wandelt ihre Fehler in HTTP-Fehler um."""
-    try:
-        return funktion(*args)
-    except LookupError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 # ---------- Kategorien ----------
 
 # Nur lesen, da die Kategorien fix sind
@@ -40,14 +30,25 @@ def aufgaben_lesen(db: Session = Depends(get_db)) -> list[AufgabeDTO]:
 
 @router.post("/aufgaben")
 def aufgabe_erstellen(dto: AufgabeDTO, db: Session = Depends(get_db)) -> AufgabeDTO:
-    return fehler_behandeln(business.aufgabe_erstellen, db, dto)
+    try:
+        return business.aufgabe_erstellen(db, dto)
+    except ValueError as e:  # z.B. leerer Titel -> 400 Bad Request
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/aufgaben/{aufgabe_id}")
 def aufgabe_aendern(aufgabe_id: int, dto: AufgabeDTO, db: Session = Depends(get_db)) -> AufgabeDTO:
-    return fehler_behandeln(business.aufgabe_aendern, db, aufgabe_id, dto)
+    try:
+        return business.aufgabe_aendern(db, aufgabe_id, dto)
+    except LookupError as e:  # Aufgabe gibt es nicht -> 404 Not Found
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:  # z.B. leerer Titel -> 400 Bad Request
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/aufgaben/{aufgabe_id}")
 def aufgabe_loeschen(aufgabe_id: int, db: Session = Depends(get_db)):
-    fehler_behandeln(business.aufgabe_loeschen, db, aufgabe_id)
+    try:
+        business.aufgabe_loeschen(db, aufgabe_id)
+    except LookupError as e:  # Aufgabe gibt es nicht -> 404 Not Found
+        raise HTTPException(status_code=404, detail=str(e))

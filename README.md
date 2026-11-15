@@ -10,12 +10,7 @@ python3 main.py
 Danach im Browser öffnen: http://localhost:8000
 API-Dokumentation (automatisch von FastAPI): http://localhost:8000/docs
 
-Standardmässig wird eine SQLite-Datei `aufgaben.db` verwendet. Für MySQL:
-
-```bash
-python3 -m pip install pymysql
-DATABASE_URL="mysql+pymysql://user:passwort@localhost/aufgaben" python3 main.py
-```
+Die Daten werden in der SQLite-Datei `aufgaben.db` im Projektordner gespeichert.
 
 ## ER-Modell (konzeptuell)
 
