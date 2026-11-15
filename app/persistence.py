@@ -2,14 +2,11 @@
 # PERSISTENCE LAYER
 # Datenbankverbindung + Entitätsklassen (SQLAlchemy)
 # ==========================================
-import os
-
 from sqlalchemy import Boolean, ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
-# Standard: SQLite-Datei im Projektordner (kein DB-Server nötig).
-# Für MySQL z.B.: DATABASE_URL="mysql+pymysql://user:passwort@localhost/aufgaben"
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///aufgaben.db")
+# SQLite-Datei im Projektordner (kein DB-Server nötig)
+DATABASE_URL = "sqlite:///aufgaben.db"
 
 engine = create_engine(DATABASE_URL)
 

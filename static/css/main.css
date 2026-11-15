@@ -1,0 +1,45 @@
+/* Gestaltung der Aufgabenverwaltung */
+
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+.container {
+    border: 1px solid grey;
+    padding: 15px;
+    max-width: 700px;
+    margin-bottom: 20px;
+}
+
+/* Formular: Beschriftung links, Eingabefeld rechts, mit Abstand zwischen den Zeilen */
+.formularzeile {
+    margin-bottom: 10px;
+}
+
+.formularzeile label {
+    display: inline-block;
+    width: 110px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+td, th {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+/* Erledigte Aufgaben werden durchgestrichen und grau angezeigt */
+.erledigt {
+    text-decoration: line-through;
+    color: grey;
+}
