@@ -1,5 +1,22 @@
 # Aufgabenverwaltung – Webbasierte Anwendungen
 
+## Voraussetzungen
+
+- Python 3.10 oder neuer
+- MySQL-Server (z.B. MySQL Community Server), gestartet auf `localhost:3306`
+- Internetverbindung (jQuery wird von code.jquery.com geladen)
+
+## Datenbank einrichten
+
+In `app/persistence.py` Benutzer und Passwort des MySQL-Servers eintragen:
+
+```python
+DB_USER = "root"
+DB_PASSWORT = "passwort"
+```
+
+Die Datenbank `aufgaben`, die Tabellen und die Kategorien (Schule, Arbeit, Privat) werden beim Start automatisch angelegt.
+
 ## Starten
 
 ```bash
@@ -9,8 +26,6 @@ python3 main.py
 
 Danach im Browser öffnen: http://localhost:8000
 API-Dokumentation (automatisch von FastAPI): http://localhost:8000/docs
-
-Die Daten werden in der SQLite-Datei `aufgaben.db` im Projektordner gespeichert.
 
 ## ER-Modell (konzeptuell)
 

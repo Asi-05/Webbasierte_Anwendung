@@ -69,12 +69,22 @@ function erstelleZeile(a) {
     });
 
     let zeile = $("<tr>").toggleClass("erledigt", a.erledigt);
+    zeile.toggleClass("ueberfaellig", a.ueberfaellig); // "ueberfaellig" berechnet der Server
     zeile.append($("<td>").append(checkbox));
     zeile.append($("<td>").text(a.titel));
     zeile.append($("<td>").text(a.beschreibung || ""));
+    zeile.append($("<td>").text(formatiereDatum(a.faellig_am)));
     zeile.append($("<td>").text(kategorieName(a.kategorie_id)));
     zeile.append($("<td>").append(aendernBtn).append(loeschenBtn));
     return zeile;
+}
+
+// Wandelt "2026-12-07" (Format vom Server) in "07.12.2026" um
+function formatiereDatum(datum) {
+    if (!datum) {
+        return "";
+    }
+    return datum.split("-").reverse().join(".");
 }
 
 function aufgabeAendern(a) {
@@ -97,11 +107,13 @@ $("#aufgabeForm").submit(function(event) {
     let neueAufgabe = {
         titel: $("#titelInput").val(),
         beschreibung: $("#beschreibungInput").val() || null,
+        faellig_am: $("#faelligInput").val() || null, // leeres Feld -> kein Datum
         kategorie_id: parseInt($("#kategorieSelect").val())
     };
     sendeAnfrage("POST", "/api/aufgaben", neueAufgabe).done(function() {
         $("#titelInput").val("");
         $("#beschreibungInput").val("");
+        $("#faelligInput").val("");
         ladeAufgaben();
     });
 });

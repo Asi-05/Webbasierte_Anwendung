@@ -10,6 +10,7 @@
     <line x1="660" y1="102" x2="665" y2="200"/>
     <line x1="790" y1="102" x2="720" y2="200"/>
     <line x1="890" y1="132" x2="770" y2="200"/>
+    <line x1="780" y1="245" x2="830" y2="255"/>
 
     <!-- Kategorie zu Beziehung (partielle Teilnahme: einfache Linie) -->
     <line x1="240" y1="230" x2="310" y2="230"/>
@@ -46,6 +47,7 @@
     <ellipse cx="660" cy="80" rx="50" ry="22"/>
     <ellipse cx="790" cy="80" rx="72" ry="22"/>
     <ellipse cx="890" cy="110" rx="55" ry="22"/>
+    <ellipse cx="885" cy="262" rx="60" ry="22"/>
   </g>
   <g text-anchor="middle" fill="#111">
     <text x="100" y="105">id</text>
@@ -54,6 +56,7 @@
     <text x="660" y="85">titel</text>
     <text x="790" y="85">beschreibung</text>
     <text x="890" y="115">erledigt</text>
+    <text x="885" y="267">faellig_am</text>
   </g>
   <!-- Unterstreichung Schlüsselattribute -->
   <g stroke="#111" stroke-width="1.3">

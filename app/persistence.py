@@ -2,11 +2,20 @@
 # PERSISTENCE LAYER
 # Datenbankverbindung + Entitätsklassen (SQLAlchemy)
 # ==========================================
-from sqlalchemy import Boolean, ForeignKey, String, create_engine, select
+from datetime import date
+
+from sqlalchemy import Boolean, Date, ForeignKey, String, create_engine, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
-# SQLite-Datei im Projektordner (kein DB-Server nötig)
-DATABASE_URL = "sqlite:///aufgaben.db"
+# MySQL-Zugangsdaten -> hier an die eigene MySQL-Installation anpassen
+DB_USER = "root"
+DB_PASSWORT = "NewStrongPass!1"
+DB_HOST = "localhost"
+DB_NAME = "aufgaben"
+
+# Verbindung zum MySQL-Server (ohne Datenbank) und zur Datenbank der Anwendung
+SERVER_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORT}@{DB_HOST}:3306"
+DATABASE_URL = f"{SERVER_URL}/{DB_NAME}"
 
 engine = create_engine(DATABASE_URL)
 
@@ -32,6 +41,7 @@ class Aufgabe(Base):
     titel: Mapped[str] = mapped_column(String(100))
     beschreibung: Mapped[str | None] = mapped_column(String(250))
     erledigt: Mapped[bool] = mapped_column(Boolean, default=False)
+    faellig_am: Mapped[date | None] = mapped_column(Date)  # optional
     kategorie_id: Mapped[int] = mapped_column(ForeignKey("kategorie.id"))
 
     # n:1 Beziehung -> jede Aufgabe gehört zu genau einer Kategorie
@@ -43,7 +53,11 @@ FESTE_KATEGORIEN = ["Schule", "Arbeit", "Privat"]
 
 
 def init_db():
-    """Erstellt die Tabellen und legt die festen Kategorien an, falls sie fehlen."""
+    """Erstellt Datenbank und Tabellen und legt die festen Kategorien an, falls sie fehlen."""
+    # Die Datenbank selbst muss auf dem MySQL-Server zuerst existieren
+    with create_engine(SERVER_URL).connect() as verbindung:
+        verbindung.execute(text(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}"))
+
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         for name in FESTE_KATEGORIEN:
