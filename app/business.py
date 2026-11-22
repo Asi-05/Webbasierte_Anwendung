@@ -3,6 +3,8 @@
 # DTOs (Data Transfer Objects) + Geschäftslogik
 # Kennt die Datenbank-Entitäten, aber nichts von HTTP/FastAPI.
 # ==========================================
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,7 +26,9 @@ class AufgabeDTO(BaseModel):
     titel: str
     beschreibung: str | None = None
     erledigt: bool = False
+    faellig_am: date | None = None
     kategorie_id: int
+    ueberfaellig: bool = False  # wird von der Business-Logik berechnet, nicht gespeichert
 
 
 # ---------- Kategorien ----------
@@ -38,21 +42,29 @@ def alle_kategorien(db: Session) -> list[KategorieDTO]:
 # ---------- Aufgaben ----------
 
 def alle_aufgaben(db: Session) -> list[AufgabeDTO]:
-    aufgaben = db.scalars(select(Aufgabe).order_by(Aufgabe.id)).all()
-    return [AufgabeDTO.model_validate(a) for a in aufgaben]
+    # Sortierung: zuerst nach Fälligkeitsdatum, Aufgaben ohne Datum am Schluss
+    aufgaben = db.scalars(
+        select(Aufgabe).order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
+    ).all()
+    return [_zu_dto(a) for a in aufgaben]
 
 
 def aufgabe_erstellen(db: Session, dto: AufgabeDTO) -> AufgabeDTO:
     _pruefe_aufgabe(db, dto)
+    # Geschäftsregel: Eine neue Aufgabe darf nicht schon in der Vergangenheit fällig sein
+    if dto.faellig_am is not None and dto.faellig_am < date.today():
+        raise ValueError("Fälligkeitsdatum darf nicht in der Vergangenheit liegen")
+
     aufgabe = Aufgabe(
         titel=dto.titel.strip(),
         beschreibung=dto.beschreibung,
         erledigt=dto.erledigt,
+        faellig_am=dto.faellig_am,
         kategorie_id=dto.kategorie_id,
     )
     db.add(aufgabe)
     db.commit()
-    return AufgabeDTO.model_validate(aufgabe)
+    return _zu_dto(aufgabe)
 
 
 def aufgabe_aendern(db: Session, aufgabe_id: int, dto: AufgabeDTO) -> AufgabeDTO:
@@ -64,9 +76,10 @@ def aufgabe_aendern(db: Session, aufgabe_id: int, dto: AufgabeDTO) -> AufgabeDTO
     aufgabe.titel = dto.titel.strip()
     aufgabe.beschreibung = dto.beschreibung
     aufgabe.erledigt = dto.erledigt
+    aufgabe.faellig_am = dto.faellig_am
     aufgabe.kategorie_id = dto.kategorie_id
     db.commit()
-    return AufgabeDTO.model_validate(aufgabe)
+    return _zu_dto(aufgabe)
 
 
 def aufgabe_loeschen(db: Session, aufgabe_id: int):
@@ -83,3 +96,15 @@ def _pruefe_aufgabe(db: Session, dto: AufgabeDTO):
         raise ValueError("Titel darf nicht leer sein")
     if db.get(Kategorie, dto.kategorie_id) is None:
         raise ValueError("Kategorie existiert nicht")
+
+
+def _zu_dto(aufgabe: Aufgabe) -> AufgabeDTO:
+    """Wandelt eine Aufgabe in ein DTO um und berechnet, ob sie überfällig ist."""
+    dto = AufgabeDTO.model_validate(aufgabe)
+    # Geschäftsregel: überfällig = nicht erledigt und Fälligkeitsdatum ist vorbei
+    dto.ueberfaellig = (
+        not aufgabe.erledigt
+        and aufgabe.faellig_am is not None
+        and aufgabe.faellig_am < date.today()
+    )
+    return dto

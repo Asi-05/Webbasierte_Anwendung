@@ -43,3 +43,9 @@ th {
     text-decoration: line-through;
     color: grey;
 }
+
+/* Überfällige Aufgaben werden rot hervorgehoben */
+.ueberfaellig {
+    color: red;
+    font-weight: bold;
+}
