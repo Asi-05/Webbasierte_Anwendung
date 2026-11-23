@@ -10,25 +10,38 @@
     <div class="container">
         <h3>Aufgaben</h3>
 
-        <form id="aufgabeForm">
-            <div class="formularzeile">
-                <label for="titelInput">Titel:</label>
-                <input type="text" id="titelInput" required placeholder="z.B. Hausaufgaben">
-            </div>
-            <div class="formularzeile">
-                <label for="beschreibungInput">Beschreibung:</label>
-                <input type="text" id="beschreibungInput">
-            </div>
-            <div class="formularzeile">
-                <label for="kategorieSelect">Kategorie:</label>
-                <select id="kategorieSelect"></select>
-            </div>
-            <button type="submit">Aufgabe speichern</button>
-        </form>
+        <!-- Eingabefelder für eine neue Aufgabe -->
+        <div class="formularzeile">
+            <label for="inpTitel">Titel:</label>
+            <input type="text" id="inpTitel" placeholder="z.B. Hausaufgaben">
+        </div>
+        <div class="formularzeile">
+            <label for="inpBeschreibung">Beschreibung:</label>
+            <input type="text" id="inpBeschreibung">
+        </div>
+        <div class="formularzeile">
+            <label for="inpFaellig">Fällig am:</label>
+            <input type="date" id="inpFaellig">
+        </div>
+        <div class="formularzeile">
+            <label for="selKategorie">Kategorie:</label>
+            <select id="selKategorie"></select>
+        </div>
+        <button id="btnSpeichern" onClick="javascript:aufgabeSpeichern()">Aufgabe speichern</button>
+        <!-- Nur im Bearbeitungsmodus sichtbar (wird von main.js ein- und ausgeblendet) -->
+        <button id="btnAbbrechen" onClick="javascript:bearbeitungBeenden()" style="display: none;">Abbrechen</button>
 
-        <table id="aufgabeTable">
+        <!-- Filter: jede Änderung lädt die Liste sofort neu (gefiltert wird auf dem Server) -->
+        <div class="filterzeile">
+            <label for="selFilterKategorie">Filter:</label>
+            <select id="selFilterKategorie" onChange="javascript:ladeAufgaben()"></select>
+            <input type="checkbox" id="chkNurOffene" onChange="javascript:ladeAufgaben()">
+            <label for="chkNurOffene">nur offene</label>
+        </div>
+
+        <table id="tblAufgabenliste">
             <thead>
-                <tr><th>Erledigt</th><th>Titel</th><th>Beschreibung</th><th>Kategorie</th><th>Aktionen</th></tr>
+                <tr><th>Erledigt</th><th>Titel</th><th>Beschreibung</th><th>Fällig am</th><th>Kategorie</th><th>Aktionen</th></tr>
             </thead>
             <tbody></tbody>
         </table>
