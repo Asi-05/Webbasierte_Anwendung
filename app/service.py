@@ -5,7 +5,7 @@
 #
 # URL-Schema (Liste im Plural, einzelnes Objekt im Singular):
 #   GET    /api/kategorien          Liste aller Kategorien
-#   GET    /api/aufgaben            Liste aller Aufgaben
+#   GET    /api/aufgaben            Liste aller Aufgaben (optional ?kategorie_id=...&nur_offene=true)
 #   GET    /api/aufgabe/{id}        eine Aufgabe abfragen
 #   POST   /api/aufgabe             neue Aufgabe erstellen
 #   PUT    /api/aufgabe/{id}        Aufgabe ändern
@@ -39,11 +39,18 @@ def get_kategorien(
 
 # ---------- Aufgaben ----------
 
+# Optionale Query-Parameter zum Filtern, z.B. /api/aufgaben?kategorie_id=2&nur_offene=true
+# (Parameter, die nicht im Pfad stehen, liest FastAPI automatisch aus der URL nach dem "?")
 @router.get("/aufgaben")
 def get_aufgaben(
     service: Annotated[AufgabeService, Depends(get_aufgabe_service)],
+    kategorie_id: int | None = None,
+    nur_offene: bool = False,
 ) -> list[AufgabeDTO]:
-    return service.alle_aufgaben()
+    try:
+        return service.alle_aufgaben(kategorie_id, nur_offene)
+    except ValueError as e:  # z.B. unbekannte Kategorie -> 400 Bad Request
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/aufgabe/{aufgabe_id}")

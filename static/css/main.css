@@ -22,6 +22,11 @@ body {
     width: 110px;
 }
 
+/* Filterzeile über der Tabelle */
+.filterzeile {
+    margin-top: 20px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -42,6 +47,11 @@ th {
 .erledigt {
     text-decoration: line-through;
     color: grey;
+}
+
+/* Die Aufgabe, die gerade im Formular bearbeitet wird, bekommt einen hellgelben Hintergrund */
+.inBearbeitung {
+    background-color: lightyellow;
 }
 
 /* Überfällige Aufgaben werden rot hervorgehoben */

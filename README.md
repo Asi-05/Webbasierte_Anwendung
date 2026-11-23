@@ -43,8 +43,12 @@ Beschreibung im gleichen Schema wie der Customer Management Service (Übung 1) u
 - **Liste aller Aufgaben**
   - URL: `http://localhost:8000/api/aufgaben`
   - Method: GET
+  - Query-Parameter (beide optional):
+    - `kategorie_id` (Zahl): nur Aufgaben dieser Kategorie
+    - `nur_offene` (`true`/`false`, Standard `false`): nur nicht erledigte Aufgaben
+    - Beispiel: `http://localhost:8000/api/aufgaben?kategorie_id=2&nur_offene=true`
   - Request Body: keiner
-  - Response: Liste der Aufgaben als JSON-Array, sortiert nach Fälligkeitsdatum
+  - Response: Liste der Aufgaben als JSON-Array, sortiert nach Fälligkeitsdatum (ohne Parameter: alle Aufgaben), HTTP 400 wenn die Kategorie nicht existiert
 - **Abfragen einer einzelnen Aufgabe**
   - URL: `http://localhost:8000/api/aufgabe/{ID}`
   - Method: GET

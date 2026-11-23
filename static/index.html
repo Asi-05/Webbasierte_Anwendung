@@ -27,7 +27,17 @@
             <label for="selKategorie">Kategorie:</label>
             <select id="selKategorie"></select>
         </div>
-        <button onClick="javascript:aufgabeSpeichern()">Aufgabe speichern</button>
+        <button id="btnSpeichern" onClick="javascript:aufgabeSpeichern()">Aufgabe speichern</button>
+        <!-- Nur im Bearbeitungsmodus sichtbar (wird von main.js ein- und ausgeblendet) -->
+        <button id="btnAbbrechen" onClick="javascript:bearbeitungBeenden()" style="display: none;">Abbrechen</button>
+
+        <!-- Filter: jede Änderung lädt die Liste sofort neu (gefiltert wird auf dem Server) -->
+        <div class="filterzeile">
+            <label for="selFilterKategorie">Filter:</label>
+            <select id="selFilterKategorie" onChange="javascript:ladeAufgaben()"></select>
+            <input type="checkbox" id="chkNurOffene" onChange="javascript:ladeAufgaben()">
+            <label for="chkNurOffene">nur offene</label>
+        </div>
 
         <table id="tblAufgabenliste">
             <thead>

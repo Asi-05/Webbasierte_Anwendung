@@ -52,11 +52,21 @@ class AufgabeService:
     def __init__(self, session: Session):
         self.session = session
 
-    def alle_aufgaben(self) -> list[AufgabeDTO]:
+    def alle_aufgaben(self, kategorie_id: int | None = None, nur_offene: bool = False) -> list[AufgabeDTO]:
+        """Liefert alle Aufgaben, optional gefiltert nach Kategorie und/oder nur offene Aufgaben."""
+        abfrage = select(Aufgabe)
+
+        # Filter nur einbauen, wenn er gesetzt ist -> ohne Parameter wie bisher alle Aufgaben
+        if kategorie_id is not None:
+            if self.session.get(Kategorie, kategorie_id) is None:
+                raise ValueError("Kategorie existiert nicht")
+            abfrage = abfrage.where(Aufgabe.kategorie_id == kategorie_id)
+        if nur_offene:
+            abfrage = abfrage.where(Aufgabe.erledigt.is_(False))  # nur nicht erledigte Aufgaben
+
         # Sortierung: zuerst nach Fälligkeitsdatum, Aufgaben ohne Datum am Schluss
-        aufgaben = self.session.scalars(
-            select(Aufgabe).order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
-        ).all()
+        abfrage = abfrage.order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
+        aufgaben = self.session.scalars(abfrage).all()
         return [_zu_dto(a) for a in aufgaben]
 
     def aufgabe_lesen(self, aufgabe_id: int) -> AufgabeDTO:
