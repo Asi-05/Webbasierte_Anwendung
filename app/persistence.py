@@ -66,7 +66,7 @@ def init_db():
         session.commit()
 
 
-def get_db():
+def get_session():
     """Liefert pro Request eine DB-Session (wird via Depends() von FastAPI genutzt)."""
     with Session(engine) as session:
         yield session

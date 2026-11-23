@@ -1,12 +1,23 @@
+// Aufbau:
+// $.getJSON(...).done(handle...Reply) -> handle...Reply geht die Liste durch -> add...ToList pro Eintrag
+
 // Hier merken wir uns die Kategorien, um bei Aufgaben den Namen anzeigen zu können
 let kategorien = [];
+
+// Beim Öffnen der Seite zuerst die Kategorien laden (danach die Aufgaben)
+$(document).ready(function() {
+    $.getJSON("/api/kategorien")
+        .done(handleKategorienReply)
+        .fail(zeigeFehler);
+});
 
 // Zeigt eine Fehlermeldung an (z.B. Fehler aus der Business-Logik oder Server nicht erreichbar)
 function zeigeFehler(xhr) {
     alert("Fehler: " + (xhr.responseJSON ? xhr.responseJSON.detail : xhr.statusText));
 }
 
-// Hilfsfunktion: sendet JSON an den Server (für POST, PUT, DELETE)
+// Hilfsfunktion: sendet JSON an den Server (für POST, PUT, DELETE).
+// $.getJSON kann nur GET, deshalb hier $.ajax mit der passenden HTTP-Methode.
 function sendeAnfrage(methode, url, daten) {
     return $.ajax({
         url: url,
@@ -18,65 +29,65 @@ function sendeAnfrage(methode, url, daten) {
 
 // ---------- Kategorien (fix: Schule, Arbeit, Privat) ----------
 
-function ladeKategorien() {
-    $.getJSON("/api/kategorien")
-        .done(function(data) {
-            kategorien = data;
-            let select = $("#kategorieSelect").empty();
-            for (let k of data) {
-                select.append($("<option>").val(k.id).text(k.name));
-            }
-            ladeAufgaben(); // erst jetzt, damit die Kategorienamen bekannt sind
-        })
-        .fail(zeigeFehler);
+// Füllt das Dropdown mit den Kategorien vom Server
+function handleKategorienReply(data) {
+    kategorien = data;
+    $("#selKategorie").empty();
+    for (let kategorie of kategorien) {
+        $("#selKategorie").append($("<option>").val(kategorie.id).text(kategorie.name));
+    }
+    ladeAufgaben(); // erst jetzt, damit die Kategorienamen bekannt sind
 }
 
-// ---------- Aufgaben ----------
-
 function kategorieName(id) {
-    for (let k of kategorien) {
-        if (k.id === id) {
-            return k.name;
+    for (let kategorie of kategorien) {
+        if (kategorie.id === id) {
+            return kategorie.name;
         }
     }
     return "?";
 }
 
+// ---------- Aufgabenliste ----------
+
+// Holt alle Aufgaben per AJAX (HTTP-GET) vom REST-Service.
+// Bei Erfolg wird handleAufgabenlisteReply aufgerufen, bei einem Fehler zeigeFehler.
 function ladeAufgaben() {
     $.getJSON("/api/aufgaben")
-        .done(function(data) {
-            let tbody = $("#aufgabeTable tbody").empty();
-            for (let a of data) {
-                tbody.append(erstelleZeile(a));
-            }
-        })
+        .done(handleAufgabenlisteReply)
         .fail(zeigeFehler);
 }
 
-// Baut eine Tabellenzeile für eine Aufgabe
-function erstelleZeile(a) {
-    let checkbox = $("<input type='checkbox'>").prop("checked", a.erledigt);
-    checkbox.change(function() {
-        a.erledigt = this.checked;
-        sendeAnfrage("PUT", "/api/aufgaben/" + a.id, a).done(ladeAufgaben);
-    });
+// "aufgaben" ist das Array mit den Aufgaben-Objekten, das der Server als JSON geschickt hat.
+// Zuerst wird die Tabelle geleert (sonst wären alte Zeilen doppelt da),
+// danach wird jede Aufgabe als Zeile angehängt.
+function handleAufgabenlisteReply(aufgaben) {
+    $("#tblAufgabenliste tbody").empty();
+    for (let aufgabe of aufgaben) {
+        addAufgabeToList(aufgabe);
+    }
+}
 
-    let aendernBtn = $("<button>").text("Ändern").click(function() {
-        aufgabeAendern(a);
-    });
-    let loeschenBtn = $("<button>").text("Löschen").click(function() {
-        aufgabeLoeschen(a);
-    });
+// Hängt eine Aufgabe als Zeile an die Tabelle an
+function addAufgabeToList(aufgabe) {
+    let checked = aufgabe.erledigt ? " checked" : "";
 
-    let zeile = $("<tr>").toggleClass("erledigt", a.erledigt);
-    zeile.toggleClass("ueberfaellig", a.ueberfaellig); // "ueberfaellig" berechnet der Server
-    zeile.append($("<td>").append(checkbox));
-    zeile.append($("<td>").text(a.titel));
-    zeile.append($("<td>").text(a.beschreibung || ""));
-    zeile.append($("<td>").text(formatiereDatum(a.faellig_am)));
-    zeile.append($("<td>").text(kategorieName(a.kategorie_id)));
-    zeile.append($("<td>").append(aendernBtn).append(loeschenBtn));
-    return zeile;
+    let newRow = $("<tr>");
+    newRow.toggleClass("erledigt", aufgabe.erledigt);
+    newRow.toggleClass("ueberfaellig", aufgabe.ueberfaellig); // "ueberfaellig" berechnet der Server
+
+    newRow.append("<td><input type='checkbox' onClick='javascript:erledigtUmschalten(" + aufgabe.id + ")'" + checked + "></td>");
+    // Texte mit .text() einfügen, damit HTML im Titel nicht ausgeführt wird
+    newRow.append($("<td>").text(aufgabe.titel));
+    newRow.append($("<td>").text(aufgabe.beschreibung || ""));
+    newRow.append($("<td>").text(formatiereDatum(aufgabe.faellig_am)));
+    newRow.append($("<td>").text(kategorieName(aufgabe.kategorie_id)));
+    newRow.append("<td>"
+        + "<button onClick='javascript:aufgabeAendern(" + aufgabe.id + ")'>Ändern</button> "
+        + "<button onClick='javascript:aufgabeLoeschen(" + aufgabe.id + ")'>Löschen</button>"
+        + "</td>");
+
+    $("#tblAufgabenliste tbody").append(newRow);
 }
 
 // Wandelt "2026-12-07" (Format vom Server) in "07.12.2026" um
@@ -87,36 +98,52 @@ function formatiereDatum(datum) {
     return datum.split("-").reverse().join(".");
 }
 
-function aufgabeAendern(a) {
-    let neuerTitel = prompt("Neuer Titel:", a.titel);
+// ---------- Aufgabe erstellen ----------
+
+// Wird vom Button "Aufgabe speichern" aufgerufen (onClick in index.html)
+function aufgabeSpeichern() {
+    let neueAufgabe = {
+        titel: $("#inpTitel").val(),
+        beschreibung: $("#inpBeschreibung").val() || null,
+        faellig_am: $("#inpFaellig").val() || null, // leeres Feld -> kein Datum
+        kategorie_id: parseInt($("#selKategorie").val())
+    };
+    sendeAnfrage("POST", "/api/aufgabe", neueAufgabe).done(function() {
+        $("#inpTitel").val("");
+        $("#inpBeschreibung").val("");
+        $("#inpFaellig").val("");
+        ladeAufgaben();
+    });
+}
+
+// ---------- Aufgabe ändern / erledigt / löschen ----------
+// Die Aufgabe wird per ID gezielt vom Server geholt (GET /api/aufgabe/{id}) und dann weiterverarbeitet.
+
+function aufgabeAendern(id) {
+    $.getJSON("/api/aufgabe/" + id)
+        .done(handleAufgabeAendernReply)
+        .fail(zeigeFehler);
+}
+
+function handleAufgabeAendernReply(aufgabe) {
+    let neuerTitel = prompt("Neuer Titel:", aufgabe.titel);
     if (neuerTitel) {
-        a.titel = neuerTitel;
-        sendeAnfrage("PUT", "/api/aufgaben/" + a.id, a).done(ladeAufgaben);
+        aufgabe.titel = neuerTitel;
+        sendeAnfrage("PUT", "/api/aufgabe/" + aufgabe.id, aufgabe).done(ladeAufgaben);
     }
 }
 
-function aufgabeLoeschen(a) {
-    sendeAnfrage("DELETE", "/api/aufgaben/" + a.id).done(ladeAufgaben);
+function erledigtUmschalten(id) {
+    $.getJSON("/api/aufgabe/" + id)
+        .done(handleErledigtReply)
+        .fail(zeigeFehler);
 }
 
-// Formular absenden -> neue Aufgabe speichern
-// (Der Browser prüft vorher das "required"-Feld, d.h. ohne Titel wird gar nicht gesendet)
-$("#aufgabeForm").submit(function(event) {
-    event.preventDefault(); // verhindert, dass die Seite neu geladen wird
+function handleErledigtReply(aufgabe) {
+    aufgabe.erledigt = !aufgabe.erledigt;
+    sendeAnfrage("PUT", "/api/aufgabe/" + aufgabe.id, aufgabe).done(ladeAufgaben);
+}
 
-    let neueAufgabe = {
-        titel: $("#titelInput").val(),
-        beschreibung: $("#beschreibungInput").val() || null,
-        faellig_am: $("#faelligInput").val() || null, // leeres Feld -> kein Datum
-        kategorie_id: parseInt($("#kategorieSelect").val())
-    };
-    sendeAnfrage("POST", "/api/aufgaben", neueAufgabe).done(function() {
-        $("#titelInput").val("");
-        $("#beschreibungInput").val("");
-        $("#faelligInput").val("");
-        ladeAufgaben();
-    });
-});
-
-// Beim Öffnen der Seite alles laden
-$(document).ready(ladeKategorien);
+function aufgabeLoeschen(id) {
+    sendeAnfrage("DELETE", "/api/aufgabe/" + id).done(ladeAufgaben);
+}

@@ -1,15 +1,18 @@
 # ==========================================
-# BUSINESS LAYER
-# DTOs (Data Transfer Objects) + Geschäftslogik
-# Kennt die Datenbank-Entitäten, aber nichts von HTTP/FastAPI.
+# BUSINESS SERVICE LAYER
+# DTOs (Data Transfer Objects) + Business Services (Geschäftslogik)
+# Kennt die Datenbank-Entitäten, aber nichts von HTTP.
+# Von FastAPI wird hier nur Depends (Dependency-Injection) genutzt.
 # ==========================================
 from datetime import date
+from typing import Annotated
 
+from fastapi import Depends
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.persistence import Aufgabe, Kategorie
+from app.persistence import Aufgabe, Kategorie, get_session
 
 
 # ---------- DTOs ----------
@@ -31,71 +34,81 @@ class AufgabeDTO(BaseModel):
     ueberfaellig: bool = False  # wird von der Business-Logik berechnet, nicht gespeichert
 
 
-# ---------- Kategorien ----------
+# ---------- Business Service: Kategorien ----------
 
-# Kategorien sind fix (Schule, Arbeit, Privat) -> sie können nur gelesen werden
-def alle_kategorien(db: Session) -> list[KategorieDTO]:
-    kategorien = db.scalars(select(Kategorie).order_by(Kategorie.id)).all()
-    return [KategorieDTO.model_validate(k) for k in kategorien]
+class KategorieService:
+    def __init__(self, session: Session):
+        self.session = session
 
-
-# ---------- Aufgaben ----------
-
-def alle_aufgaben(db: Session) -> list[AufgabeDTO]:
-    # Sortierung: zuerst nach Fälligkeitsdatum, Aufgaben ohne Datum am Schluss
-    aufgaben = db.scalars(
-        select(Aufgabe).order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
-    ).all()
-    return [_zu_dto(a) for a in aufgaben]
+    # Kategorien sind fix (Schule, Arbeit, Privat) -> sie können nur gelesen werden
+    def alle_kategorien(self) -> list[KategorieDTO]:
+        kategorien = self.session.scalars(select(Kategorie).order_by(Kategorie.id)).all()
+        return [KategorieDTO.model_validate(k) for k in kategorien]
 
 
-def aufgabe_erstellen(db: Session, dto: AufgabeDTO) -> AufgabeDTO:
-    _pruefe_aufgabe(db, dto)
-    # Geschäftsregel: Eine neue Aufgabe darf nicht schon in der Vergangenheit fällig sein
-    if dto.faellig_am is not None and dto.faellig_am < date.today():
-        raise ValueError("Fälligkeitsdatum darf nicht in der Vergangenheit liegen")
+# ---------- Business Service: Aufgaben ----------
 
-    aufgabe = Aufgabe(
-        titel=dto.titel.strip(),
-        beschreibung=dto.beschreibung,
-        erledigt=dto.erledigt,
-        faellig_am=dto.faellig_am,
-        kategorie_id=dto.kategorie_id,
-    )
-    db.add(aufgabe)
-    db.commit()
-    return _zu_dto(aufgabe)
+class AufgabeService:
+    def __init__(self, session: Session):
+        self.session = session
 
+    def alle_aufgaben(self) -> list[AufgabeDTO]:
+        # Sortierung: zuerst nach Fälligkeitsdatum, Aufgaben ohne Datum am Schluss
+        aufgaben = self.session.scalars(
+            select(Aufgabe).order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
+        ).all()
+        return [_zu_dto(a) for a in aufgaben]
 
-def aufgabe_aendern(db: Session, aufgabe_id: int, dto: AufgabeDTO) -> AufgabeDTO:
-    aufgabe = db.get(Aufgabe, aufgabe_id)
-    if aufgabe is None:
-        raise LookupError("Aufgabe nicht gefunden")
-    _pruefe_aufgabe(db, dto)
+    def aufgabe_lesen(self, aufgabe_id: int) -> AufgabeDTO:
+        return _zu_dto(self._finde_aufgabe(aufgabe_id))
 
-    aufgabe.titel = dto.titel.strip()
-    aufgabe.beschreibung = dto.beschreibung
-    aufgabe.erledigt = dto.erledigt
-    aufgabe.faellig_am = dto.faellig_am
-    aufgabe.kategorie_id = dto.kategorie_id
-    db.commit()
-    return _zu_dto(aufgabe)
+    def aufgabe_erstellen(self, dto: AufgabeDTO) -> AufgabeDTO:
+        self._pruefe_aufgabe(dto)
+        # Geschäftsregel: Eine neue Aufgabe darf nicht schon in der Vergangenheit fällig sein
+        if dto.faellig_am is not None and dto.faellig_am < date.today():
+            raise ValueError("Fälligkeitsdatum darf nicht in der Vergangenheit liegen")
 
+        aufgabe = Aufgabe(
+            titel=dto.titel.strip(),
+            beschreibung=dto.beschreibung,
+            erledigt=dto.erledigt,
+            faellig_am=dto.faellig_am,
+            kategorie_id=dto.kategorie_id,
+        )
+        self.session.add(aufgabe)
+        self.session.commit()
+        return _zu_dto(aufgabe)
 
-def aufgabe_loeschen(db: Session, aufgabe_id: int):
-    aufgabe = db.get(Aufgabe, aufgabe_id)
-    if aufgabe is None:
-        raise LookupError("Aufgabe nicht gefunden")
-    db.delete(aufgabe)
-    db.commit()
+    def aufgabe_aendern(self, aufgabe_id: int, dto: AufgabeDTO) -> AufgabeDTO:
+        aufgabe = self._finde_aufgabe(aufgabe_id)
+        self._pruefe_aufgabe(dto)
 
+        aufgabe.titel = dto.titel.strip()
+        aufgabe.beschreibung = dto.beschreibung
+        aufgabe.erledigt = dto.erledigt
+        aufgabe.faellig_am = dto.faellig_am
+        aufgabe.kategorie_id = dto.kategorie_id
+        self.session.commit()
+        return _zu_dto(aufgabe)
 
-def _pruefe_aufgabe(db: Session, dto: AufgabeDTO):
-    """Gemeinsame Prüfungen für Erstellen und Ändern."""
-    if not dto.titel.strip():
-        raise ValueError("Titel darf nicht leer sein")
-    if db.get(Kategorie, dto.kategorie_id) is None:
-        raise ValueError("Kategorie existiert nicht")
+    def aufgabe_loeschen(self, aufgabe_id: int):
+        aufgabe = self._finde_aufgabe(aufgabe_id)
+        self.session.delete(aufgabe)
+        self.session.commit()
+
+    def _finde_aufgabe(self, aufgabe_id: int) -> Aufgabe:
+        """Sucht eine Aufgabe per ID, wirft LookupError wenn es sie nicht gibt."""
+        aufgabe = self.session.get(Aufgabe, aufgabe_id)
+        if aufgabe is None:
+            raise LookupError("Aufgabe nicht gefunden")
+        return aufgabe
+
+    def _pruefe_aufgabe(self, dto: AufgabeDTO):
+        """Gemeinsame Prüfungen für Erstellen und Ändern."""
+        if not dto.titel.strip():
+            raise ValueError("Titel darf nicht leer sein")
+        if self.session.get(Kategorie, dto.kategorie_id) is None:
+            raise ValueError("Kategorie existiert nicht")
 
 
 def _zu_dto(aufgabe: Aufgabe) -> AufgabeDTO:
@@ -108,3 +121,15 @@ def _zu_dto(aufgabe: Aufgabe) -> AufgabeDTO:
         and aufgabe.faellig_am < date.today()
     )
     return dto
+
+
+# ---------- Provider für die Dependency-Injection (Depends) ----------
+# FastAPI ruft diese Funktionen bei jeder Anfrage auf und übergibt das Resultat
+# an die REST-Endpunkte im Service Layer.
+
+def get_kategorie_service(session: Annotated[Session, Depends(get_session)]):
+    return KategorieService(session)
+
+
+def get_aufgabe_service(session: Annotated[Session, Depends(get_session)]):
+    return AufgabeService(session)
