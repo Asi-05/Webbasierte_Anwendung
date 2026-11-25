@@ -8,23 +8,33 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import Depends
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.persistence import Aufgabe, Kategorie, get_session
 
 
+# ---------- Eigene Exceptions ----------
+# Der Business Layer kennt kein HTTP. Er meldet Fehler mit diesen Klassen,
+# der Service Layer übersetzt sie in Statuscodes.
+
+class NichtGefundenError(Exception):
+    """Gesuchte Aufgabe existiert nicht -> wird im Service Layer zu 404."""
+
+
+class UngueltigeDatenError(Exception):
+    """Daten verletzen eine Geschäftsregel -> wird im Service Layer zu 400."""
+
+
 # ---------- DTOs ----------
 
 class KategorieDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True)  # erlaubt Umwandlung aus SQLAlchemy-Objekt
-    id: int | None = None
+    id: int  # Kategorien werden nur gelesen, haben also immer eine ID
     name: str
 
 
 class AufgabeDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
     id: int | None = None
     titel: str
     beschreibung: str | None = None
@@ -43,7 +53,7 @@ class KategorieService:
     # Kategorien sind fix (Schule, Arbeit, Privat) -> sie können nur gelesen werden
     def alle_kategorien(self) -> list[KategorieDTO]:
         kategorien = self.session.scalars(select(Kategorie).order_by(Kategorie.id)).all()
-        return [KategorieDTO.model_validate(k) for k in kategorien]
+        return [KategorieDTO(id=k.id, name=k.name) for k in kategorien]
 
 
 # ---------- Business Service: Aufgaben ----------
@@ -58,14 +68,12 @@ class AufgabeService:
 
         # Filter nur einbauen, wenn er gesetzt ist -> ohne Parameter wie bisher alle Aufgaben
         if kategorie_id is not None:
-            if self.session.get(Kategorie, kategorie_id) is None:
-                raise ValueError("Kategorie existiert nicht")
             abfrage = abfrage.where(Aufgabe.kategorie_id == kategorie_id)
         if nur_offene:
-            abfrage = abfrage.where(Aufgabe.erledigt.is_(False))  # nur nicht erledigte Aufgaben
+            abfrage = abfrage.where(Aufgabe.erledigt == False)  # nur nicht erledigte Aufgaben
 
-        # Sortierung: zuerst nach Fälligkeitsdatum, Aufgaben ohne Datum am Schluss
-        abfrage = abfrage.order_by(Aufgabe.faellig_am.is_(None), Aufgabe.faellig_am, Aufgabe.id)
+        # Sortierung nach Fälligkeitsdatum (Aufgaben ohne Datum stehen bei MySQL zuerst)
+        abfrage = abfrage.order_by(Aufgabe.faellig_am)
         aufgaben = self.session.scalars(abfrage).all()
         return [_zu_dto(a) for a in aufgaben]
 
@@ -76,7 +84,7 @@ class AufgabeService:
         self._pruefe_aufgabe(dto)
         # Geschäftsregel: Eine neue Aufgabe darf nicht schon in der Vergangenheit fällig sein
         if dto.faellig_am is not None and dto.faellig_am < date.today():
-            raise ValueError("Fälligkeitsdatum darf nicht in der Vergangenheit liegen")
+            raise UngueltigeDatenError("Fälligkeitsdatum darf nicht in der Vergangenheit liegen")
 
         aufgabe = Aufgabe(
             titel=dto.titel.strip(),
@@ -107,30 +115,35 @@ class AufgabeService:
         self.session.commit()
 
     def _finde_aufgabe(self, aufgabe_id: int) -> Aufgabe:
-        """Sucht eine Aufgabe per ID, wirft LookupError wenn es sie nicht gibt."""
+        """Sucht eine Aufgabe per ID, wirft NichtGefundenError wenn es sie nicht gibt."""
         aufgabe = self.session.get(Aufgabe, aufgabe_id)
         if aufgabe is None:
-            raise LookupError("Aufgabe nicht gefunden")
+            raise NichtGefundenError("Aufgabe nicht gefunden")
         return aufgabe
 
     def _pruefe_aufgabe(self, dto: AufgabeDTO):
         """Gemeinsame Prüfungen für Erstellen und Ändern."""
         if not dto.titel.strip():
-            raise ValueError("Titel darf nicht leer sein")
+            raise UngueltigeDatenError("Titel darf nicht leer sein")
+        # Gleiche Längen wie in der Datenbank (String(100) / String(250)), sonst lehnt MySQL ab -> Fehler 500
+        if len(dto.titel) > 100 or (dto.beschreibung and len(dto.beschreibung) > 250):
+            raise UngueltigeDatenError("Titel max. 100 und Beschreibung max. 250 Zeichen")
         if self.session.get(Kategorie, dto.kategorie_id) is None:
-            raise ValueError("Kategorie existiert nicht")
+            raise UngueltigeDatenError("Kategorie existiert nicht")
 
 
 def _zu_dto(aufgabe: Aufgabe) -> AufgabeDTO:
     """Wandelt eine Aufgabe in ein DTO um und berechnet, ob sie überfällig ist."""
-    dto = AufgabeDTO.model_validate(aufgabe)
-    # Geschäftsregel: überfällig = nicht erledigt und Fälligkeitsdatum ist vorbei
-    dto.ueberfaellig = (
-        not aufgabe.erledigt
-        and aufgabe.faellig_am is not None
-        and aufgabe.faellig_am < date.today()
+    return AufgabeDTO(
+        id=aufgabe.id,
+        titel=aufgabe.titel,
+        beschreibung=aufgabe.beschreibung,
+        erledigt=aufgabe.erledigt,
+        faellig_am=aufgabe.faellig_am,
+        kategorie_id=aufgabe.kategorie_id,
+        # Geschäftsregel: überfällig = nicht erledigt und Fälligkeitsdatum ist vorbei
+        ueberfaellig=not aufgabe.erledigt and aufgabe.faellig_am is not None and aufgabe.faellig_am < date.today(),
     )
-    return dto
 
 
 # ---------- Provider für die Dependency-Injection (Depends) ----------

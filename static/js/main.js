@@ -8,27 +8,19 @@ let kategorien = [];
 // null = keine Aufgabe in Bearbeitung -> das Formular erfasst eine neue Aufgabe
 let bearbeiteteAufgabe = null;
 
-// Beim Öffnen der Seite zuerst die Kategorien laden (danach die Aufgaben)
-$(document).ready(function() {
-    $.getJSON("/api/kategorien")
-        .done(handleKategorienReply)
-        .fail(zeigeFehler);
-});
+// Beim Öffnen der Seite zuerst die Kategorien laden (danach die Aufgaben).
+// Das Script steht am Ende vom body, deshalb existieren alle HTML-Elemente schon.
+$.getJSON("/api/kategorien")
+    .done(handleKategorienReply)
+    .fail(zeigeFehler);
 
 // Zeigt eine Fehlermeldung an (z.B. Fehler aus der Business-Logik oder Server nicht erreichbar)
 function zeigeFehler(xhr) {
-    alert("Fehler: " + (xhr.responseJSON ? xhr.responseJSON.detail : xhr.statusText));
-}
-
-// Hilfsfunktion: sendet JSON an den Server (für POST, PUT, DELETE).
-// $.getJSON kann nur GET, deshalb hier $.ajax mit der passenden HTTP-Methode.
-function sendeAnfrage(methode, url, daten) {
-    return $.ajax({
-        url: url,
-        type: methode,
-        contentType: "application/json",
-        data: daten ? JSON.stringify(daten) : undefined
-    }).fail(zeigeFehler);
+    if (xhr.responseJSON) {
+        alert("Fehler: " + xhr.responseJSON.detail);
+    } else {
+        alert("Fehler: " + xhr.statusText);
+    }
 }
 
 // ---------- Kategorien (fix: Schule, Arbeit, Privat) ----------
@@ -36,11 +28,10 @@ function sendeAnfrage(methode, url, daten) {
 // Füllt die Dropdowns (Formular und Filter) mit den Kategorien vom Server
 function handleKategorienReply(data) {
     kategorien = data;
-    $("#selKategorie").empty();
-    $("#selFilterKategorie").empty();
     // Erste Filter-Option "Alle" mit leerem Wert -> kein Kategorie-Filter
     $("#selFilterKategorie").append($("<option>").val("").text("Alle"));
-    for (let kategorie of kategorien) {
+    for (let i = 0; i < kategorien.length; i++) {
+        let kategorie = kategorien[i];
         $("#selKategorie").append($("<option>").val(kategorie.id).text(kategorie.name));
         $("#selFilterKategorie").append($("<option>").val(kategorie.id).text(kategorie.name));
     }
@@ -48,9 +39,9 @@ function handleKategorienReply(data) {
 }
 
 function kategorieName(id) {
-    for (let kategorie of kategorien) {
-        if (kategorie.id === id) {
-            return kategorie.name;
+    for (let i = 0; i < kategorien.length; i++) {
+        if (kategorien[i].id === id) {
+            return kategorien[i].name;
         }
     }
     return "?";
@@ -68,7 +59,7 @@ function ladeAufgaben() {
     if ($("#selFilterKategorie").val()) {
         parameter.kategorie_id = $("#selFilterKategorie").val();
     }
-    if ($("#chkNurOffene").is(":checked")) {
+    if (document.getElementById("chkNurOffene").checked) {
         parameter.nur_offene = true;
     }
     // jQuery hängt das Objekt "parameter" automatisch als ?...&... an die URL an
@@ -82,41 +73,38 @@ function ladeAufgaben() {
 // danach wird jede Aufgabe als Zeile angehängt.
 function handleAufgabenlisteReply(aufgaben) {
     $("#tblAufgabenliste tbody").empty();
-    for (let aufgabe of aufgaben) {
-        addAufgabeToList(aufgabe);
+    for (let i = 0; i < aufgaben.length; i++) {
+        addAufgabeToList(aufgaben[i]);
     }
 }
 
 // Hängt eine Aufgabe als Zeile an die Tabelle an
 function addAufgabeToList(aufgabe) {
-    let checked = aufgabe.erledigt ? " checked" : "";
+    let checked = "";
+    if (aufgabe.erledigt) {
+        checked = " checked";
+    }
 
     let newRow = $("<tr>");
-    newRow.toggleClass("erledigt", aufgabe.erledigt);
-    newRow.toggleClass("ueberfaellig", aufgabe.ueberfaellig); // "ueberfaellig" berechnet der Server
-    // Die Zeile, die gerade im Formular bearbeitet wird, hervorheben
-    newRow.toggleClass("inBearbeitung", bearbeiteteAufgabe !== null && bearbeiteteAufgabe.id === aufgabe.id);
+    if (aufgabe.erledigt) {
+        newRow.addClass("erledigt");
+    }
+    if (aufgabe.ueberfaellig) { // "ueberfaellig" berechnet der Server
+        newRow.addClass("ueberfaellig");
+    }
 
-    newRow.append("<td><input type='checkbox' onClick='javascript:erledigtUmschalten(" + aufgabe.id + ")'" + checked + "></td>");
+    newRow.append("<td><input type='checkbox' onclick='erledigtUmschalten(" + aufgabe.id + ")'" + checked + "></td>");
     // Texte mit .text() einfügen, damit HTML im Titel nicht ausgeführt wird
     newRow.append($("<td>").text(aufgabe.titel));
-    newRow.append($("<td>").text(aufgabe.beschreibung || ""));
-    newRow.append($("<td>").text(formatiereDatum(aufgabe.faellig_am)));
+    newRow.append($("<td>").text(aufgabe.beschreibung)); // null ergibt bei .text() einen leeren Text
+    newRow.append($("<td>").text(aufgabe.faellig_am)); // Format vom Server: "2026-12-07"
     newRow.append($("<td>").text(kategorieName(aufgabe.kategorie_id)));
     newRow.append("<td>"
-        + "<button onClick='javascript:aufgabeAendern(" + aufgabe.id + ")'>Ändern</button> "
-        + "<button onClick='javascript:aufgabeLoeschen(" + aufgabe.id + ")'>Löschen</button>"
+        + "<button onclick='aufgabeAendern(" + aufgabe.id + ")'>Ändern</button> "
+        + "<button onclick='aufgabeLoeschen(" + aufgabe.id + ")'>Löschen</button>"
         + "</td>");
 
     $("#tblAufgabenliste tbody").append(newRow);
-}
-
-// Wandelt "2026-12-07" (Format vom Server) in "07.12.2026" um
-function formatiereDatum(datum) {
-    if (!datum) {
-        return "";
-    }
-    return datum.split("-").reverse().join(".");
 }
 
 // ---------- Aufgabe erstellen oder ändern (gleiches Formular) ----------
@@ -126,30 +114,45 @@ function formatiereDatum(datum) {
 function aufgabeSpeichern() {
     let aufgabe = {
         titel: $("#inpTitel").val(),
-        beschreibung: $("#inpBeschreibung").val() || null,
-        faellig_am: $("#inpFaellig").val() || null, // leeres Feld -> kein Datum
-        kategorie_id: parseInt($("#selKategorie").val())
+        beschreibung: $("#inpBeschreibung").val(),
+        faellig_am: null, // leeres Feld -> kein Datum (der Server versteht "" nicht als Datum)
+        kategorie_id: $("#selKategorie").val() // "2" wandelt FastAPI selbst in die Zahl 2 um
     };
+    if ($("#inpFaellig").val()) {
+        aufgabe.faellig_am = $("#inpFaellig").val();
+    }
 
-    if (bearbeiteteAufgabe === null) {
-        sendeAnfrage("POST", "/api/aufgabe", aufgabe).done(bearbeitungBeenden);
-    } else {
+    // Neue Aufgabe -> POST, Aufgabe in Bearbeitung -> PUT
+    let url = "/api/aufgabe";
+    let methode = "POST";
+    if (bearbeiteteAufgabe !== null) {
+        url = "/api/aufgabe/" + bearbeiteteAufgabe.id;
+        methode = "PUT";
         // "erledigt" steht nicht im Formular -> Wert der bearbeiteten Aufgabe übernehmen,
         // sonst würde PUT (ersetzt die ganze Aufgabe) ihn auf false zurücksetzen
         aufgabe.erledigt = bearbeiteteAufgabe.erledigt;
-        sendeAnfrage("PUT", "/api/aufgabe/" + bearbeiteteAufgabe.id, aufgabe).done(bearbeitungBeenden);
     }
+
+    // $.getJSON kann nur GET, deshalb hier $.ajax mit der passenden HTTP-Methode.
+    // JSON.stringify wandelt das Objekt in JSON-Text um (nötig wegen contentType "application/json").
+    $.ajax({
+        url: url,
+        type: methode,
+        contentType: "application/json",
+        data: JSON.stringify(aufgabe),
+        success: bearbeitungBeenden,
+        error: zeigeFehler
+    });
 }
 
 // Leert das Formular, beendet den Bearbeitungsmodus und lädt die Liste neu.
-// Wird nach erfolgreichem Speichern aufgerufen und direkt vom Button "Abbrechen" (onClick in index.html).
+// Wird nach erfolgreichem Speichern aufgerufen und nach dem Löschen der bearbeiteten Aufgabe.
 function bearbeitungBeenden() {
     bearbeiteteAufgabe = null;
     $("#inpTitel").val("");
     $("#inpBeschreibung").val("");
     $("#inpFaellig").val("");
     $("#btnSpeichern").text("Aufgabe speichern");
-    $("#btnAbbrechen").hide();
     ladeAufgaben();
 }
 
@@ -167,12 +170,10 @@ function aufgabeAendern(id) {
 function handleAufgabeAendernReply(aufgabe) {
     bearbeiteteAufgabe = aufgabe;
     $("#inpTitel").val(aufgabe.titel);
-    $("#inpBeschreibung").val(aufgabe.beschreibung || "");
-    $("#inpFaellig").val(aufgabe.faellig_am || ""); // Format "2026-12-07" passt direkt ins Datumsfeld
+    $("#inpBeschreibung").val(aufgabe.beschreibung); // null ergibt bei .val() ein leeres Feld
+    $("#inpFaellig").val(aufgabe.faellig_am); // Format "2026-12-07" passt direkt ins Datumsfeld
     $("#selKategorie").val(aufgabe.kategorie_id);
     $("#btnSpeichern").text("Änderung speichern");
-    $("#btnAbbrechen").show();
-    ladeAufgaben(); // neu zeichnen, damit die bearbeitete Zeile hervorgehoben wird
 }
 
 function erledigtUmschalten(id) {
@@ -183,9 +184,32 @@ function erledigtUmschalten(id) {
 
 function handleErledigtReply(aufgabe) {
     aufgabe.erledigt = !aufgabe.erledigt;
-    sendeAnfrage("PUT", "/api/aufgabe/" + aufgabe.id, aufgabe).done(ladeAufgaben);
+    $.ajax({
+        url: "/api/aufgabe/" + aufgabe.id,
+        type: "PUT",
+        contentType: "application/json",
+        data: JSON.stringify(aufgabe),
+        success: ladeAufgaben,
+        error: zeigeFehler
+    });
 }
 
 function aufgabeLoeschen(id) {
-    sendeAnfrage("DELETE", "/api/aufgabe/" + id).done(ladeAufgaben);
+    if (!confirm("Aufgabe wirklich löschen?")) {
+        return;
+    }
+    $.ajax({
+        url: "/api/aufgabe/" + id,
+        type: "DELETE",
+        success: function() {
+            // Wurde genau die Aufgabe gelöscht, die im Formular bearbeitet wird -> Formular leeren.
+            // Sonst nur die Liste neu laden (eine andere Aufgabe bleibt in Bearbeitung).
+            if (bearbeiteteAufgabe !== null && bearbeiteteAufgabe.id === id) {
+                bearbeitungBeenden();
+            } else {
+                ladeAufgaben();
+            }
+        },
+        error: zeigeFehler
+    });
 }

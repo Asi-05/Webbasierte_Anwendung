@@ -8,16 +8,16 @@
 <body>
     <!-- ========== AUFGABEN ========== -->
     <div class="container">
-        <h3>Aufgaben</h3>
+        <h1>Aufgaben</h1>
 
         <!-- Eingabefelder für eine neue Aufgabe -->
         <div class="formularzeile">
             <label for="inpTitel">Titel:</label>
-            <input type="text" id="inpTitel" placeholder="z.B. Hausaufgaben">
+            <input type="text" id="inpTitel" maxlength="100" placeholder="z.B. Hausaufgaben">
         </div>
         <div class="formularzeile">
             <label for="inpBeschreibung">Beschreibung:</label>
-            <input type="text" id="inpBeschreibung">
+            <input type="text" id="inpBeschreibung" maxlength="250">
         </div>
         <div class="formularzeile">
             <label for="inpFaellig">Fällig am:</label>
@@ -27,15 +27,13 @@
             <label for="selKategorie">Kategorie:</label>
             <select id="selKategorie"></select>
         </div>
-        <button id="btnSpeichern" onClick="javascript:aufgabeSpeichern()">Aufgabe speichern</button>
-        <!-- Nur im Bearbeitungsmodus sichtbar (wird von main.js ein- und ausgeblendet) -->
-        <button id="btnAbbrechen" onClick="javascript:bearbeitungBeenden()" style="display: none;">Abbrechen</button>
+        <button id="btnSpeichern" onclick="aufgabeSpeichern()">Aufgabe speichern</button>
 
         <!-- Filter: jede Änderung lädt die Liste sofort neu (gefiltert wird auf dem Server) -->
         <div class="filterzeile">
             <label for="selFilterKategorie">Filter:</label>
-            <select id="selFilterKategorie" onChange="javascript:ladeAufgaben()"></select>
-            <input type="checkbox" id="chkNurOffene" onChange="javascript:ladeAufgaben()">
+            <select id="selFilterKategorie" onchange="ladeAufgaben()"></select>
+            <input type="checkbox" id="chkNurOffene" onchange="ladeAufgaben()">
             <label for="chkNurOffene">nur offene</label>
         </div>
 
