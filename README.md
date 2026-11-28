@@ -15,7 +15,13 @@ DB_USER = "root"
 DB_PASSWORT = "passwort"
 ```
 
-Die Datenbank `aufgaben`, die Tabellen und die Kategorien (Schule, Arbeit, Privat) werden beim Start automatisch angelegt.
+Die Datenbank `aufgaben` einmalig in MySQL anlegen (z.B. in MySQL Workbench):
+
+```sql
+CREATE DATABASE aufgaben;
+```
+
+Die Tabellen und die Kategorien (Schule, Arbeit, Privat) werden beim Start automatisch angelegt.
 
 ## Starten
 
@@ -48,7 +54,7 @@ Beschreibung im gleichen Schema wie der Customer Management Service (Übung 1) u
     - `nur_offene` (`true`/`false`, Standard `false`): nur nicht erledigte Aufgaben
     - Beispiel: `http://localhost:8000/api/aufgaben?kategorie_id=2&nur_offene=true`
   - Request Body: keiner
-  - Response: Liste der Aufgaben als JSON-Array, sortiert nach Fälligkeitsdatum (ohne Parameter: alle Aufgaben), HTTP 400 wenn die Kategorie nicht existiert
+  - Response: Liste der Aufgaben als JSON-Array, sortiert nach Fälligkeitsdatum (ohne Parameter: alle Aufgaben, unbekannte Kategorie: leere Liste)
 - **Abfragen einer einzelnen Aufgabe**
   - URL: `http://localhost:8000/api/aufgabe/{ID}`
   - Method: GET

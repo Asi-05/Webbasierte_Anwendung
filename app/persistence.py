@@ -4,18 +4,17 @@
 # ==========================================
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, String, create_engine, select, text
+from sqlalchemy import ForeignKey, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship
 
 # MySQL-Zugangsdaten -> hier an die eigene MySQL-Installation anpassen
 DB_USER = "root"
-DB_PASSWORT = "NewStrongPass!1"
+DB_PASSWORT = ""
 DB_HOST = "localhost"
 DB_NAME = "aufgaben"
 
-# Verbindung zum MySQL-Server (ohne Datenbank) und zur Datenbank der Anwendung
-SERVER_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORT}@{DB_HOST}:3306"
-DATABASE_URL = f"{SERVER_URL}/{DB_NAME}"
+# Verbindung zur Datenbank der Anwendung (die Datenbank muss in MySQL schon existieren)
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORT}@{DB_HOST}:3306/{DB_NAME}"
 
 engine = create_engine(DATABASE_URL)
 
@@ -40,8 +39,8 @@ class Aufgabe(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     titel: Mapped[str] = mapped_column(String(100))
     beschreibung: Mapped[str | None] = mapped_column(String(250))
-    erledigt: Mapped[bool] = mapped_column(Boolean, default=False)
-    faellig_am: Mapped[date | None] = mapped_column(Date)  # optional
+    erledigt: Mapped[bool] = mapped_column(default=False)
+    faellig_am: Mapped[date | None]  # optional
     kategorie_id: Mapped[int] = mapped_column(ForeignKey("kategorie.id"))
 
     # n:1 Beziehung -> jede Aufgabe gehört zu genau einer Kategorie
@@ -53,17 +52,14 @@ FESTE_KATEGORIEN = ["Schule", "Arbeit", "Privat"]
 
 
 def init_db():
-    """Erstellt Datenbank und Tabellen und legt die festen Kategorien an, falls sie fehlen."""
-    # Die Datenbank selbst muss auf dem MySQL-Server zuerst existieren
-    with create_engine(SERVER_URL).connect() as verbindung:
-        verbindung.execute(text(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}"))
-
+    """Erstellt die Tabellen und legt die festen Kategorien an, falls sie fehlen."""
     Base.metadata.create_all(engine)
     with Session(engine) as session:
-        for name in FESTE_KATEGORIEN:
-            if session.scalar(select(Kategorie).where(Kategorie.name == name)) is None:
+        # Nur beim allerersten Start (Tabelle noch leer) die festen Kategorien einfügen
+        if session.scalars(select(Kategorie)).first() is None:
+            for name in FESTE_KATEGORIEN:
                 session.add(Kategorie(name=name))
-        session.commit()
+            session.commit()
 
 
 def get_session():

@@ -49,11 +49,6 @@ th {
     color: grey;
 }
 
-/* Die Aufgabe, die gerade im Formular bearbeitet wird, bekommt einen hellgelben Hintergrund */
-.inBearbeitung {
-    background-color: lightyellow;
-}
-
 /* Überfällige Aufgaben werden rot hervorgehoben */
 .ueberfaellig {
     color: red;

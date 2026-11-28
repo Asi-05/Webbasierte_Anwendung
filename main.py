@@ -11,7 +11,7 @@ from app.service import router
 
 init_db()  # Tabellen und feste Kategorien anlegen
 
-app = FastAPI(title="Aufgabenverwaltung")
+app = FastAPI()
 app.include_router(router)  # REST-Endpunkte unter /api/...
 
 # Präsentationsschicht: liefert static/index.html unter http://localhost:8000/

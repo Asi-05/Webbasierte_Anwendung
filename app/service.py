@@ -20,6 +20,8 @@ from app.business import (
     AufgabeService,
     KategorieDTO,
     KategorieService,
+    NichtGefundenError,
+    UngueltigeDatenError,
     get_aufgabe_service,
     get_kategorie_service,
 )
@@ -47,10 +49,7 @@ def get_aufgaben(
     kategorie_id: int | None = None,
     nur_offene: bool = False,
 ) -> list[AufgabeDTO]:
-    try:
-        return service.alle_aufgaben(kategorie_id, nur_offene)
-    except ValueError as e:  # z.B. unbekannte Kategorie -> 400 Bad Request
-        raise HTTPException(status_code=400, detail=str(e))
+    return service.alle_aufgaben(kategorie_id, nur_offene)
 
 
 @router.get("/aufgabe/{aufgabe_id}")
@@ -60,7 +59,7 @@ def get_aufgabe(
 ) -> AufgabeDTO:
     try:
         return service.aufgabe_lesen(aufgabe_id)
-    except LookupError as e:  # Aufgabe gibt es nicht -> 404 Not Found
+    except NichtGefundenError as e:  # Aufgabe gibt es nicht -> 404 Not Found
         raise HTTPException(status_code=404, detail=str(e))
 
 
@@ -71,7 +70,7 @@ def create_aufgabe(
 ) -> AufgabeDTO:
     try:
         return service.aufgabe_erstellen(dto)
-    except ValueError as e:  # z.B. leerer Titel -> 400 Bad Request
+    except UngueltigeDatenError as e:  # z.B. leerer Titel -> 400 Bad Request
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -83,9 +82,9 @@ def update_aufgabe(
 ) -> AufgabeDTO:
     try:
         return service.aufgabe_aendern(aufgabe_id, dto)
-    except LookupError as e:  # Aufgabe gibt es nicht -> 404 Not Found
+    except NichtGefundenError as e:  # Aufgabe gibt es nicht -> 404 Not Found
         raise HTTPException(status_code=404, detail=str(e))
-    except ValueError as e:  # z.B. leerer Titel -> 400 Bad Request
+    except UngueltigeDatenError as e:  # z.B. leerer Titel -> 400 Bad Request
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -96,5 +95,5 @@ def delete_aufgabe(
 ):
     try:
         service.aufgabe_loeschen(aufgabe_id)
-    except LookupError as e:  # Aufgabe gibt es nicht -> 404 Not Found
+    except NichtGefundenError as e:  # Aufgabe gibt es nicht -> 404 Not Found
         raise HTTPException(status_code=404, detail=str(e))
